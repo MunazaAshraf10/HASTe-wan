@@ -1,0 +1,28 @@
+[haste]
+window = 64
+bits = 16
+projection = 'ternary'
+sparsity = 0.6666666666666666
+seed = 17
+layers = 'all'
+linear = 'both'
+backend = 'cuda'
+tile = 128
+
+[model]
+name = 'Wan-AI/Wan2.2-Animate-2-14B-Diffusers'
+revision = '7d48412d7b903ff3a89f4f5a960d99e1899605a1'
+height = 320
+width = 480
+steps = 40
+frames = 81
+fps = 24
+guidance = 3.0
+
+[run]
+manifest = 'experiments/manifest.jsonl'
+output = 'results'
+devices = [0]
+warmup = 1
+repeats = 3
+split = 'dev'

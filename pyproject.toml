@@ -1,0 +1,60 @@
+[build-system]
+requires = ['hatchling>=1.27']
+build-backend = 'hatchling.build'
+
+[project]
+name = 'haste-wan'
+version = '0.1.0'
+description = 'Experimental HASTE channel compression for Wan Animate 2'
+readme = 'README.md'
+requires-python = '>=3.14,<3.15'
+dependencies = [
+  'torch==2.14.0',
+  '''triton==3.8.0; sys_platform == 'linux' and platform_machine == 'x86_64'''',
+  'diffusers==0.40.0',
+  'transformers==5.17.0',
+  'accelerate==1.15.0',
+  'safetensors>=0.6',
+  'pillow>=11',
+  'numpy>=2.3',
+  'imageio[ffmpeg]>=2.37',
+  'torchmetrics==1.9.0',
+  'torchvision==0.29.0',
+  'sentencepiece>=0.2',
+  'ftfy>=6.3',
+]
+
+[project.scripts]
+haste = 'haste.cli:main'
+
+[dependency-groups]
+dev = ['pytest==9.1.1', 'ruff==0.16.7', 'ty==0.0.80']
+
+[tool.hatch.build.targets.wheel]
+packages = ['src/haste']
+
+[tool.ruff]
+target-version = 'py314'
+line-length = 100
+
+[tool.ruff.lint]
+select = ['E', 'F', 'I', 'B', 'UP', 'Q']
+
+[tool.ruff.format]
+quote-style = 'preserve'
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = 'single'
+multiline-quotes = 'single'
+docstring-quotes = 'single'
+avoid-escape = false
+
+[tool.pytest.ini_options]
+testpaths = ['tests']
+markers = [
+  'cuda: requires an NVIDIA CUDA device',
+  'metrics: requires cached public AlexNet weights',
+]
+
+[tool.ty.src]
+exclude = ['src/haste/kernels.py']

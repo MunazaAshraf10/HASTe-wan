@@ -1,0 +1,2 @@
+{"name":"motion_dev","image":"../data/dev/reference.png","video":"../data/dev/driving.mp4","prompt":"A person wearing a blue jacket.","seed":42,"split":"dev"}
+{"name":"motion_eval","image":"../data/eval/reference.png","video":"../data/eval/driving.mp4","prompt":"A person wearing a white shirt.","seed":42,"split":"eval"}
