@@ -151,11 +151,6 @@ class Config:
             data = tomllib.load(stream)
         if extra := data.keys() - {'haste', 'model', 'run', 'calibration'}:
             raise ValueError(f'Unknown configuration sections: {sorted(extra)}')
-        obsolete = {'window', 'bits', 'projection', 'sparsity', 'linear', 'tile'}
-        if obsolete & data.get('haste', {}).keys():
-            raise ValueError(
-                'Channel compression settings are obsolete; use sparse attention settings'
-            )
         return cls(
             Haste(**data.get('haste', {})),
             Model(**data.get('model', {})),

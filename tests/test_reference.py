@@ -5,7 +5,7 @@ import pytest
 import torch
 
 from haste.attention import SparseAttention
-from haste.config import Config, Haste
+from haste.config import Haste
 from haste.reference import (
     Geometry,
     attention,
@@ -168,13 +168,6 @@ def test_reused_heads_skip_scoring(monkeypatch):
     assert len(calls) == 3
     state(q, k, k, geometry, torch.tensor([0.8, 0.9]))
     assert len(calls) == 4
-
-
-def test_old_configuration_reports_migration(tmp_path):
-    path = tmp_path / 'old.toml'
-    path.write_text('[haste]\nwindow = 64\nbits = 16\n')
-    with pytest.raises(ValueError, match='obsolete'):
-        Config.read(path)
 
 
 def test_layer_gating_forces_whole_layer_decisions():

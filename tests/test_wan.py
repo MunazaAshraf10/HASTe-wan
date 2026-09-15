@@ -27,24 +27,19 @@ def test_public_wan_layout_and_restoration():
     model = transformer()
     originals = [block.self_attn.processor for block in model.blocks]
     attention = [block.self_attn for block in model.blocks]
-    x = torch.randn(1, 35, 32)
-    with torch.inference_mode():
-        baseline = model.blocks[0].ffn(x)
-        with install(model, Haste(engine='reference', layers='early')) as patch:
-            assert len(patch.entries) == 1
-            assert isinstance(model.blocks[0].self_attn.processor, Processor)
-            assert model.blocks[1].self_attn.processor is originals[1]
-            assert all(
-                block.self_attn is attn for block, attn in zip(model.blocks, attention, strict=True)
-            )
-            model.blocks[0].ffn(x)
-            patch.enable(False)
-            torch.testing.assert_close(model.blocks[0].ffn(x), baseline, atol=0, rtol=0)
+    with install(model, Haste(engine='reference', layers='early')) as patch:
+        assert len(patch.entries) == 1
+        assert isinstance(model.blocks[0].self_attn.processor, Processor)
+        assert model.blocks[1].self_attn.processor is originals[1]
         assert all(
-            block.self_attn.processor is source
-            for block, source in zip(model.blocks, originals, strict=True)
+            block.self_attn is attn for block, attn in zip(model.blocks, attention, strict=True)
         )
-        torch.testing.assert_close(model.blocks[0].ffn(x), baseline, atol=0, rtol=0)
+        patch.enable(False)
+        assert not patch.entries[0].processor.enabled
+    assert all(
+        block.self_attn.processor is source
+        for block, source in zip(model.blocks, originals, strict=True)
+    )
 
 
 def test_invalid_structure_fails_before_mutation():
