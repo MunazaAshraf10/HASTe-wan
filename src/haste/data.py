@@ -2,6 +2,7 @@ import hashlib
 import importlib.metadata
 import json
 import platform
+import subprocess
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -82,6 +83,7 @@ def environment(device: int) -> dict:
         'transformers',
         'accelerate',
         'numpy',
+        'scipy',
         'torchmetrics',
         'torchvision',
     )
@@ -103,10 +105,25 @@ def environment(device: int) -> dict:
         platform=platform.platform(),
         packages=versions,
         cuda=torch.version.cuda,
+        driver=subprocess.check_output(
+            [
+                'nvidia-smi',
+                '--query-gpu=driver_version',
+                '--format=csv,noheader',
+                '-i',
+                str(device),
+            ],
+            text=True,
+            timeout=10,
+        ).strip(),
         gpu=info.name,
         memory=info.total_memory,
         capability=[info.major, info.minor],
         device=device,
+        backends=dict(
+            xattention='e37988770b9d1bebd489eba011d615f35587ba08',
+            svg2='f89aedaf169ac2ae5b186bda674e53c3dc08c476',
+        ),
         lock_sha256=digest(root / 'uv.lock') if (root / 'uv.lock').exists() else None,
         source_sha256=source_hash.hexdigest(),
         paper_sha256=digest(root / 'HASTE.pdf') if (root / 'HASTE.pdf').exists() else None,

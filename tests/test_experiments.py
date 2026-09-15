@@ -11,7 +11,7 @@ from haste.runner import identity, variants
 def test_grid_is_unique_and_eval_cannot_sweep():
     config = Config()
     grid = variants(config)
-    assert len(grid) == 75
+    assert len(grid) == 8
     assert len({identity(item) for item in grid}) == len(grid)
     with pytest.raises(ValueError, match='restricted to dev'):
         variants(replace(config, run=replace(config.run, split='eval')))
@@ -31,7 +31,7 @@ def test_manifest_rejects_content_leakage(tmp_path):
         manifest(str(path), 'dev')
 
 
-@pytest.mark.parametrize('kwargs', [{'bits': 31}, {'window': 16}, {'sparsity': 1}, {'tile': 31}])
+@pytest.mark.parametrize('kwargs', [{'threshold': 0}, {'block': 16}, {'drift': -1}, {'queries': 0}])
 def test_invalid_kernel_settings(kwargs):
     with pytest.raises(ValueError):
         Haste(**kwargs)

@@ -33,9 +33,11 @@ fps = 24
 guidance = 3.0
 
 [run]
+# One warmup and one timed generation per mode; no trace or counter passes.
 manifest = 'experiments/manifest.jsonl'
 output = 'results'
 devices = [0]
 warmup = 1
-repeats = 3
+repeats = 1
 split = 'dev'
+diagnostics = false

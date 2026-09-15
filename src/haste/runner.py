@@ -13,8 +13,11 @@ import torch
 from diffusers import ClassifierFreeGuidance, WanAnimate2ModularPipeline
 from diffusers.utils import export_to_video, load_image, load_video
 
+from haste.calibration import apply_table, load_table, provenance
 from haste.config import Config
 from haste.data import Sample, environment, manifest, write_json
+from haste.images import comparison
+from haste.images import save_frames as save_images
 from haste.metrics import compare
 from haste.timing import Trace, measure
 from haste.wan import install
@@ -71,10 +74,11 @@ def infer(pipe, args: dict, seed: int, device: int) -> np.ndarray:
 
 
 def save_frames(path: Path, frames: np.ndarray, fps: int) -> None:
-
+    '''Lossless array, MP4 preview, and PNG frames for visual inspection.'''
     path.parent.mkdir(parents=True, exist_ok=True)
     np.save(path.with_suffix('.npy'), frames, allow_pickle=False)
     export_to_video(list(frames), str(path.with_suffix('.mp4')), fps=fps)
+    save_images(path.parent, path.name, frames)
 
 
 def identity(config: Config) -> str:
@@ -104,7 +108,7 @@ def run_mode(
         raise RuntimeError('No frames produced')
     save_frames(folder / mode, frames, config.model.fps)
     transformer = {}
-    if paired:
+    if paired and config.run.diagnostics:
         trace = Trace(pipe.transformer, pipe.scheduler)
         try:
             infer(pipe, args, sample.seed, device)
@@ -112,6 +116,20 @@ def run_mode(
         finally:
             trace.close()
     return frames, dict(timing=timing, peak_bytes=memory, transformer_ms=transformer)
+
+
+def summary(record: dict, folder: Path) -> str:
+    modes, metrics = record['modes'], record['metrics']
+    baseline, haste = modes['baseline']['timing'], modes['haste']['timing']
+    lines = [
+        f'{record["sample"]["name"]}: baseline {baseline["median_ms"] / 1000:.1f}s, '
+        f'haste {haste["median_ms"] / 1000:.1f}s, speedup {record["speedup"]:.3f}x',
+        f'  SSIM {metrics["ssim"]:.4f}  PSNR '
+        + ('identical' if metrics['identical'] else f'{metrics["psnr"]:.2f} dB')
+        + f'  LPIPS {metrics["lpips"]:.4f}',
+        f'  frames and comparison.png in {folder}',
+    ]
+    return '\n'.join(lines)
 
 
 def destination(config: Config, sample: Sample, paired: bool, baseline: bool) -> Path:
@@ -127,6 +145,9 @@ def pair(pipe, config: Config, sample: Sample, device: int, paired: bool, baseli
         sample=sample.record(),
         environment=environment(device),
         status='running',
+        calibration=provenance(config.haste.table)
+        if config.haste.mode in ('ebc', 'full')
+        else None,
         modes={},
     )
     write_json(folder / 'record.json', record)
@@ -140,14 +161,16 @@ def pair(pipe, config: Config, sample: Sample, device: int, paired: bool, baseli
             record['modes']['baseline'] = info
         if paired or not baseline:
             with install(pipe.transformer, config.haste) as patch:
+                if config.haste.mode in ('ebc', 'full'):
+                    apply_table(patch, load_table(config.haste.table, config))
                 candidate, info = run_mode(
                     pipe, config, sample, args, device, folder, 'haste', paired
                 )
                 record['modes']['haste'] = info
-                if paired:
+                if paired and config.run.diagnostics:
                     patch.collect()
                     infer(pipe, args, sample.seed, device)
-                    record['buckets'] = patch.counts()
+                    record['attention'] = patch.counts()
                     patch.collect(False)
             if reference_frames is not None:
                 # Release cached CUDA allocations before loading the metric network.
@@ -158,6 +181,10 @@ def pair(pipe, config: Config, sample: Sample, device: int, paired: bool, baseli
                 record['speedup'] = (
                     record['modes']['baseline']['timing']['median_ms'] / info['timing']['median_ms']
                 )
+                comparison(reference_frames, candidate, record['metrics']['ssim_frames']).save(
+                    folder / 'comparison.png'
+                )
+                print(summary(record, folder), flush=True)
         record['status'] = 'complete'
     except Exception as error:
         record['status'] = 'failed'
@@ -174,19 +201,13 @@ def variants(config: Config) -> list[Config]:
     if config.run.split != 'dev':
         raise ValueError('Sweeps are restricted to dev; freeze a configuration before evaluation')
     grid = []
-    for window, bits, projection, linear in itertools.product(
-        (32, 64, 128), (8, 12, 16, 24), ('gaussian', 'ternary'), ('input', 'output', 'both')
+    for backend, mode in itertools.product(
+        ('xattention', 'svg2'), ('sparse', 'tmr', 'ebc', 'full')
     ):
+        table = config.haste.table.replace('{backend}', backend)
         grid.append(
-            replace(
-                config,
-                haste=replace(
-                    config.haste, window=window, bits=bits, projection=projection, linear=linear
-                ),
-            )
+            replace(config, haste=replace(config.haste, backend=backend, mode=mode, table=table))
         )
-    for group in ('early', 'middle', 'late'):
-        grid.append(replace(config, haste=replace(config.haste, layers=group)))
     return grid
 
 
@@ -210,6 +231,13 @@ def launch(
 ) -> None:
     samples = manifest(config.run.manifest, config.run.split)
     configs = variants(config) if sweep else [config]
+    for settings in configs:
+        if settings.haste.mode in ('ebc', 'full'):
+            table = load_table(settings.haste.table, settings)
+            if settings.run.split == 'eval':
+                used = {row['video_sha256'] for row in table['inputs']}
+                if any(sample.record()['video_sha256'] in used for sample in samples):
+                    raise ValueError('Evaluation videos overlap the calibration development inputs')
     jobs = list(itertools.product(configs, samples))
     for settings, sample in jobs:
         path = destination(settings, sample, paired, baseline)

@@ -5,7 +5,7 @@ build-backend = 'hatchling.build'
 [project]
 name = 'haste-wan'
 version = '0.1.0'
-description = 'Experimental HASTE channel compression for Wan Animate 2'
+description = 'Head-wise adaptive sparse attention for Wan Animate 2'
 readme = 'README.md'
 requires-python = '>=3.14,<3.15'
 dependencies = [
@@ -17,6 +17,7 @@ dependencies = [
   'safetensors>=0.6',
   'pillow>=11',
   'numpy>=2.3',
+  'scipy>=1.17',
   'imageio[ffmpeg]>=2.37',
   'torchmetrics==1.9.0',
   'torchvision==0.29.0',

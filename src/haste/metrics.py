@@ -1,10 +1,14 @@
 import math
+from pathlib import Path
 
 import numpy as np
 import torch
+from diffusers.utils import load_video
 from torch import Tensor
 from torchmetrics.functional.image import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
+from haste.images import comparison
 
 
 def frames_tensor(frames: np.ndarray, device: torch.device) -> Tensor:
@@ -52,4 +56,26 @@ def compare(baseline: np.ndarray, candidate: np.ndarray, device: torch.device) -
         ssim=torch.stack(ssim).mean().item(),
         lpips=torch.stack(perceptual).mean().item(),
         temporal_error=torch.stack(temporal).mean().item() if temporal else None,
+        ssim_frames=[value.item() for value in ssim],
     )
+
+
+def load_frames(path: Path) -> np.ndarray:
+    '''Read a lossless NumPy video or decode a video file into RGB frames.'''
+    if path.suffix == '.npy':
+        return np.load(path, allow_pickle=False)
+    frames = load_video(str(path))
+    if not isinstance(frames, list):
+        raise ValueError(f'Expected decoded frames from {path}')
+    return np.stack([np.asarray(frame.convert('RGB')) for frame in frames])
+
+
+def compare_files(baseline: Path, candidate: Path, output: Path | None = None) -> dict:
+    '''Paired quality metrics and a comparison sheet for two saved generations.'''
+    a, b = load_frames(baseline), load_frames(candidate)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    metrics = compare(a, b, device)
+    folder = candidate.parent if output is None else output
+    folder.mkdir(parents=True, exist_ok=True)
+    comparison(a, b, metrics['ssim_frames']).save(folder / 'comparison.png')
+    return dict(baseline=str(baseline), candidate=str(candidate), **metrics)
