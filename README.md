@@ -1,57 +1,70 @@
 # HASTE for Wan Animate 2
 
-This repository implements the supplied [HASTE paper](HASTE.pdf), Training Free
-Video Diffusion Acceleration via Head Wise Adaptive Sparse Attention, for Wan2.2
-Animate 2. It reduces denoising attention cost without changing pretrained
-weights, feedforward layers, cross attention, normalization, rotary embeddings,
-or reference extraction.
+This repository implements [HASTE](HASTE.pdf), Training Free Video Diffusion
+Acceleration via Head Wise Adaptive Sparse Attention, for Wan2.2 Animate 2. It
+accelerates denoising self attention without modifying pretrained weights, cross
+attention, feedforward layers, normalization, rotary embeddings, or reference
+extraction.
 
-HASTE is implemented over XAttention and SVG2. Sparse selection covers generation
-and reference keys while preserving Animate 2 frame visibility. The paper validates
-Wan2.1; applying it to Wan2.2 Animate 2 is an extension that requires independent
-GPU evaluation.
+The paper validates Wan2.1. This code extends HASTE to Animate 2 rectangular
+attention, where generation queries attend to generation keys and frame aligned
+reference keys. Structural visibility is enforced during scoring and sparse
+attention.
 
 ## Method
 
-Temporal Mask Reuse stores each head's query and key means at its latest mask
-refresh. Following Equation 5 and Algorithm 1, the current drift is
+Temporal Mask Reuse stores FP32 token means for each attention head at the most
+recent mask refresh. Equation 5 is implemented as
 
-\[
-D_t=\lVert\bar q_t-\bar q_a\rVert_1+\lVert\bar k_t-\bar k_a\rVert_1.
-\]
+$$
+D_t = \left\lVert \bar{q}_t - \bar{q}_a \right\rVert_1
+    + \left\lVert \bar{k}_t - \bar{k}_a \right\rVert_1
+$$
 
-A head refreshes when its drift exceeds the threshold. Otherwise it reuses the
-anchor mask and sparse layout with current query, key, and value tensors. State is
-isolated by sample, layer, head, guidance branch, reference cache, and segment.
+where a denotes the last refresh step. A head refreshes when D exceeds its drift
+threshold. Otherwise the cached sparse layout is applied to current Q, K, and V.
+Caches are isolated by sample, layer, head, guidance branch, reference cache, and
+segment geometry.
 
-XAttention uses inverse stride antidiagonal block scoring. SVG2 uses Euclidean
-clustering, centroid weighted scoring, stable semantic permutation, and top p
-cluster selection. Reused SVG2 state keeps labels, permutations, offsets,
-centroids, and masks consistent.
+XAttention uses inverse stride antidiagonal scoring followed by block top p
+selection. SVG2 uses Euclidean Q and K clustering, centroid population weighting,
+stable semantic permutation, and cluster top p selection. SVG2 reuse preserves
+centroids, labels, permutations, offsets, and masks as one anchor state.
 
-Error Guided Budgeted Calibration measures isolated head errors against cached
-dense denoising velocities. Equations 7 and 9 through 11 define a weighted four
-band temporal and spatial FFT objective and an integer program that assigns one
-top p threshold per head under a global sparsity budget. Guidance branches are
-calibrated separately.
+Error Guided Budgeted Calibration evaluates one sparse head at a time against
+cached dense denoising velocities. A weighted four band 3D FFT objective measures
+the output error. Integer linear programming then selects one threshold per head
+under the measured global sparsity budget. Conditional and unconditional guidance
+branches are calibrated independently.
 
-## CUDA implementation
+## Code structure
 
-Triton kernels implement scoring, clustering, stable permutation, top p selection,
-mask reuse, and tiled sparse attention with online softmax. The CUDA path does not
-construct a full token score matrix. Model tensors use BF16; dot products, softmax,
-cluster centers, drift, and reductions accumulate in FP32.
+| Component | Implementation |
+| --- | --- |
+| HASTE state and execution | [attention.py](src/haste/attention.py) |
+| Animate 2 processor integration | [wan.py](src/haste/wan.py) |
+| Mathematical reference | [reference.py](src/haste/reference.py) |
+| Triton CUDA kernels | [kernels.py](src/haste/kernels.py) |
+| EBC objective and solver | [calibration.py](src/haste/calibration.py) |
+| Dense replay and calibration workers | [calibrate.py](src/haste/calibrate.py) |
+| Generation and paired evaluation | [runner.py](src/haste/runner.py) |
 
-The target is Python 3.14.6 on Linux x86_64 with NVIDIA H100 and a driver compatible
+The execution modes are sparse attention, sparse attention with TMR, sparse
+attention with EBC, and the complete TMR plus EBC method. Processor installation
+is reversible and restores the original Wan attention processors exactly.
+
+## CUDA and validation
+
+Triton kernels implement scoring, clustering, permutation, top p selection, and
+tiled sparse attention with online softmax. The optimized path does not construct
+the full token score matrix. Model tensors use BF16. Dot products, softmax state,
+cluster centers, drift, and reductions use FP32.
+
+The target is Python 3.14.6, Linux x86_64, NVIDIA H100, and a driver compatible
 with CUDA 13. Dependencies and the Wan model revision are pinned.
 
-## Correctness evidence
-
-The PyTorch reference verifies sparse attention against explicit masks, full
-retention against dense attention, FFT energy, TMR anchor behavior, and calibration
-against exhaustive search. Integration tests verify unchanged weights, reference
-caches, branch isolation, segment invalidation, and exact processor restoration.
-
-Local validation passes 42 tests plus formatting, linting, and type checks. H100
-kernel correctness, full model memory use, visual quality, and speed remain to be
-measured before performance claims are made.
+Local validation passes 42 tests, formatting, linting, and type checking. Tests
+cover dense equivalence, explicit sparse mask agreement, TMR anchor behavior,
+reference visibility, FFT energy, calibration optimality, cache isolation,
+unchanged weights, and processor restoration. H100 correctness, memory use,
+quality, and speed remain unverified until GPU execution.
