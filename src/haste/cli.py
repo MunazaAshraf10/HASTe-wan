@@ -1,9 +1,10 @@
-'''Command line entry points for generation and controlled research experiments.'''
-
 import argparse
 from pathlib import Path
 
+from haste.benchmark import kernels
 from haste.config import Config
+from haste.report import summarize
+from haste.runner import launch
 
 
 def main() -> None:
@@ -25,19 +26,14 @@ def main() -> None:
     report.add_argument('directory', type=Path)
     args = parser.parse_args()
     if args.command == 'summarize':
-        from haste.report import summarize
-
         result = summarize(args.directory)
         count = len(result['experiments'])
         print(f'Summarized {count} configurations')
         return
     config = Config.read(args.config)
     if args.command == 'kernels':
-        from haste.benchmark import kernels
-
         kernels(config)
         return
-    from haste.runner import launch
 
     launch(
         config,

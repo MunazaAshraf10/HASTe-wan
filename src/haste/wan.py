@@ -1,5 +1,3 @@
-'''Public Diffusers integration for Wan Animate 2 feedforward projections.'''
-
 from dataclasses import dataclass, field
 from types import TracebackType
 

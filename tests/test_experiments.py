@@ -1,5 +1,3 @@
-'''Research split, manifest integrity, and experiment grid checks.'''
-
 import json
 from dataclasses import replace
 

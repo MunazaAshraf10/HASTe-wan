@@ -1,5 +1,3 @@
-'''Synchronized CUDA timings with separate compilation and warmup samples.'''
-
 import statistics
 import time
 from collections.abc import Callable

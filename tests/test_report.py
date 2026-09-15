@@ -1,5 +1,3 @@
-'''Pareto comparisons must use the same data and hardware cohort.'''
-
 from copy import deepcopy
 
 from haste.config import Config

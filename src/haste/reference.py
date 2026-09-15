@@ -1,5 +1,3 @@
-'''Readable reference implementation of the HASTE linear extension.'''
-
 import torch
 from torch import Tensor
 

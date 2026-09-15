@@ -1,10 +1,10 @@
-'''Paired fidelity metrics; baseline similarity is not an absolute quality score.'''
-
 import math
 
 import numpy as np
 import torch
 from torch import Tensor
+from torchmetrics.functional.image import structural_similarity_index_measure
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 
 def frames_tensor(frames: np.ndarray, device: torch.device) -> Tensor:
@@ -26,8 +26,6 @@ def compare(baseline: np.ndarray, candidate: np.ndarray, device: torch.device) -
     PSNR uses global video MSE and unit data range. Exact equality is encoded
     explicitly because JSON does not define positive infinity.
     '''
-    from torchmetrics.functional.image import structural_similarity_index_measure
-    from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
     if baseline.shape != candidate.shape:
         raise ValueError('Paired videos must have identical dimensions')

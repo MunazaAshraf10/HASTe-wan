@@ -1,9 +1,8 @@
-'''Reversible linear layer adaptation with immutable pretrained parameters.'''
-
 import torch
 from torch import Tensor, nn
 
 from haste import reference
+from haste.backend import cuda
 from haste.config import Haste
 from haste.hashing import projections
 
@@ -46,9 +45,10 @@ class CompressedLinear(nn.Module):
             )
         if not x.is_cuda:
             raise RuntimeError('The CUDA backend requires an NVIDIA GPU')
-        from haste.kernels import linear
+        if cuda is None:
+            raise RuntimeError('The CUDA backend requires Triton; run uv sync on Linux')
 
-        return linear(
+        return cuda.linear(
             x,
             self.source.weight,
             self.source.bias,

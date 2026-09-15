@@ -1,5 +1,3 @@
-'''Equation level tests with an independently constructed channel mixing operator.'''
-
 import pytest
 import torch
 from torch import nn

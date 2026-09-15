@@ -1,5 +1,3 @@
-'''CUDA generation and paired experiments using public modular Diffusers APIs.'''
-
 import gc
 import hashlib
 import itertools
@@ -12,6 +10,8 @@ from typing import Any
 
 import numpy as np
 import torch
+from diffusers import ClassifierFreeGuidance, WanAnimate2ModularPipeline
+from diffusers.utils import export_to_video, load_image, load_video
 
 from haste.config import Config
 from haste.data import Sample, environment, manifest, write_json
@@ -22,7 +22,6 @@ from haste.wan import install
 
 def load(config: Config, device: int):
     '''Load the public base preset and compile upstream attention blocks.'''
-    from diffusers import ClassifierFreeGuidance, WanAnimate2ModularPipeline
 
     if not torch.cuda.is_available():
         raise RuntimeError('Wan generation requires an NVIDIA CUDA device')
@@ -40,7 +39,6 @@ def load(config: Config, device: int):
 
 
 def inputs(config: Config, sample: Sample) -> dict:
-    from diffusers.utils import load_image, load_video
 
     video, fps = load_video(sample.video, return_fps=True)
     return dict(
@@ -73,7 +71,6 @@ def infer(pipe, args: dict, seed: int, device: int) -> np.ndarray:
 
 
 def save_frames(path: Path, frames: np.ndarray, fps: int) -> None:
-    from diffusers.utils import export_to_video
 
     path.parent.mkdir(parents=True, exist_ok=True)
     np.save(path.with_suffix('.npy'), frames, allow_pickle=False)

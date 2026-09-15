@@ -1,5 +1,3 @@
-'''Random projection hashing from HASTE Equations 3 through 5.'''
-
 import torch
 from torch import Tensor
 

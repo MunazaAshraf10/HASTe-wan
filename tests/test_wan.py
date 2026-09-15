@@ -1,7 +1,11 @@
-'''Integration checks against the actual Diffusers transformer structure.'''
-
 import pytest
 import torch
+from diffusers.models.transformers.transformer_wan_animate_2 import (
+    WanAnimate2Transformer3DModel,
+)
+from diffusers.modular_pipelines.wan_animate_2.modular_pipeline import (
+    WanAnimate2ModularPipeline,
+)
 from torch import nn
 
 from haste.config import Haste
@@ -10,9 +14,6 @@ from haste.wan import install
 
 
 def transformer():
-    from diffusers.models.transformers.transformer_wan_animate_2 import (
-        WanAnimate2Transformer3DModel,
-    )
 
     return WanAnimate2Transformer3DModel(
         dim=32, ffn_dim=64, num_heads=4, num_layers=3, text_dim=32, freq_dim=16
@@ -61,9 +62,6 @@ def test_context_restores_after_failure():
 
 
 def test_modular_pipeline_contract():
-    from diffusers.modular_pipelines.wan_animate_2.modular_pipeline import (
-        WanAnimate2ModularPipeline,
-    )
 
     pipe = WanAnimate2ModularPipeline()
     names = {param.name for param in pipe.blocks.inputs}

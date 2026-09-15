@@ -24,6 +24,10 @@ Run uv run pytest, uv run ruff check ., uv run ruff format --check ., and uv run
 check for local validation. GPU tests carry the cuda marker and are skipped when
 CUDA is unavailable. The H100 test command is uv run pytest -m cuda.
 
+Keep imports at the top of each Python module and use unquoted type annotations.
+Place concise documentation on functions and classes rather than at the top of
+files. Optional Triton imports belong in the backend module's import section.
+
 ## Experiments
 
 Edit experiments/default.toml and provide a JSONL manifest. Each row contains name,

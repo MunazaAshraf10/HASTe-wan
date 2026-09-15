@@ -1,5 +1,3 @@
-'''Validate range conversion and paired metric semantics on controlled videos.'''
-
 from pathlib import Path
 
 import numpy as np

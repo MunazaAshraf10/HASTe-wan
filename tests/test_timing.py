@@ -1,5 +1,3 @@
-'''Instrumentation must preserve the scheduler interface and remove its hooks.'''
-
 import inspect
 
 from torch import nn

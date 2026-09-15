@@ -1,5 +1,3 @@
-'''Input manifests and reproducible artifact metadata.'''
-
 import hashlib
 import importlib.metadata
 import json

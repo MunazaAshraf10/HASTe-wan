@@ -1,5 +1,3 @@
-'''Aggregate paired records without mixing development and evaluation results.'''
-
 import csv
 import hashlib
 import json

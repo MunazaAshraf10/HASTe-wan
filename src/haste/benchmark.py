@@ -1,11 +1,10 @@
-'''Component and complete feedforward CUDA benchmarks at Wan dimensions.'''
-
 from functools import partial
 from pathlib import Path
 
 import torch
 from torch import nn
 
+from haste.backend import cuda
 from haste.config import Config
 from haste.data import environment, write_json
 from haste.hashing import projections
@@ -17,7 +16,8 @@ from haste.timing import measure
 def kernels(config: Config) -> None:
     if not torch.cuda.is_available():
         raise RuntimeError('Kernel benchmarks require CUDA')
-    from haste import kernels as cuda
+    if cuda is None:
+        raise RuntimeError('Kernel benchmarks require Triton; run uv sync on Linux')
 
     device = config.run.devices[0]
     torch.cuda.set_device(device)

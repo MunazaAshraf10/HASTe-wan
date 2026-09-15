@@ -1,10 +1,3 @@
-'''CUDA kernels for windowed HASTE channel compression.
-
-Hash sorting uses PyTorch's device implementation. Triton compacts the sorted
-codes, merges occupied groups, and evaluates the reduced matrix product.
-All reductions accumulate in FP32; merged operands remain FP32 until the dot.
-'''
-
 import torch
 import triton as tr
 import triton.language as tl
